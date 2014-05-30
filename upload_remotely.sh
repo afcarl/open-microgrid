@@ -14,4 +14,4 @@ rsync -ar --delete --exclude=.build --itemize-changes  --human-readable --progre
 ssh $1 '
   cd .arduino_code
   ino build -m leonardo
-  ino upload -m leonardo -p $2'
+  ino upload -m leonardo -p $(echo $2)'
