@@ -1,3 +1,6 @@
 [submodule "code/lib/RF24Network"]
 	path = code/lib/RF24Network
 	url = https://github.com/maniacbug/RF24Network
+[submodule "code/lib/RF24"]
+	path = code/lib/RF24
+	url = https://github.com/maniacbug/RF24
