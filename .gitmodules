@@ -3,4 +3,4 @@
 	url = https://github.com/maniacbug/RF24Network
 [submodule "code/lib/RF24"]
 	path = code/lib/RF24
-	url = https://github.com/maniacbug/RF24
+	url = git@github.com:nivwusquorum/RF24.git

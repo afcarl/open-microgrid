@@ -8,5 +8,5 @@ then
     exit 1
 fi
 
-ssh -t $1 "ino serial -p /dev/arduino$2"
+ssh -t $1 "ino serial -p /dev/arduino$2" -b 57600
 
