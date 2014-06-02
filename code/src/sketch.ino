@@ -7,67 +7,54 @@
  */
 
 /**
- * Example for Getting Started with nRF24L01+ radios. 
- *
- * This is an example of how to use the RF24 class.  Write this sketch to two 
- * different nodes.  Put one of the nodes into 'transmit' mode by connecting 
- * with the serial monitor and sending a 'T'.  The ping node sends the current 
- * time to the pong node, which responds by sending the value back.  The ping 
- * node can then see how long the whole cycle took.
+ * Code used for establishing topology.
  */
+
 
 #include <SPI.h>
 #include "nRF24L01.h"
 #include "RF24.h"
 #include "printf.h"
+#include "smart_assert.h"
+
+
 
 //
 // Hardware configuration
 //
 
 // Set up nRF24L01 radio on SPI bus plus pins 9 & 10 
-
 RF24 radio(9,10);
 
-//
-// Topology
-//
+// TODO: This should be periodically randomized to minimize risk of collision with other grids.
+// One channel should remain constant, for the new grid nodes connecting.
+const uint64_t grid_id = 0x7c909a2eLL;
+// Each channel is a 40 bit number. Grid id is 32 bit number which is common prefix of 
+// all channels used by a particular grid. 
+const uint64_t control_pipe = (grid_id<<8LL);
 
-// Radio pipe addresses for the 2 nodes to communicate.
-const uint64_t pipes[2] = { 0x00F0F0F0E1LL, 0x00F0F0F0D2LL };
 
-//
-// Role management
-//
-// Set up role.  This sketch uses the same software for all the nodes
-// in this system.  Doing so greatly simplifies testing.  
-//
-
-// The various roles supported by this sketch
-typedef enum { role_ping_out = 1, role_pong_back } role_e;
-
-// The debug-friendly names of those roles
-const char* role_friendly_name[] = { "invalid", "Ping out", "Pong back"};
-
+typedef enum { joining = 1, idle } state_e;
+const char* state_friendly_name[] = { "invalid", "idle" };
 // The role of the current running sketch
-role_e role = role_pong_back;
+state_e state = joining;
+
+typedef enum { join_request = 1} command_e;
 
 void setup(void)
 {
   //
   // Print preamble
   //
-
+  // setting up serial.
   Serial.begin(57600);
   while (!Serial) {
-  ; // Wait for serial connect. Only needed for the Leonardo
+    // Wait for serial connect. Only needed for the Leonardo
     delay(20);
   }
-  delay(3000);
+  
   printf_begin();
-  printf("\n\rRF24/examples/GettingStarted/\n\r");
-  printf("ROLE: %s\n\r",role_friendly_name[role]);
-  printf("*** PRESS 'T' to begin transmitting to the other node\n\r");
+  printf("\n\ropenmicrogrid starting\n\r");
 
   //
   // Setup and configure rf radio
@@ -77,6 +64,9 @@ void setup(void)
 
   // optionally, increase the delay between retries & # of retries
   radio.setRetries(15,15);
+
+  // set lowest data rate for improved range.
+  assert(radio.setDataRate(RF24_250KBPS));
 
   // optionally, reduce the payload size.  seems to
   // improve reliability
@@ -94,7 +84,7 @@ void setup(void)
   //if ( role == role_ping_out )
   {
     //radio.openWritingPipe(pipes[0]);
-    radio.openReadingPipe(1,pipes[1]);
+    //radio.openReadingPipe(1,pipes[1]);
   }
   //else
   {
@@ -106,17 +96,23 @@ void setup(void)
   // Start listening
   //
 
-  radio.startListening();
+  //radio.startListening();
 
   //
   // Dump the configuration of the rf unit for debugging
   //
-
+  printf("\n\rradio configuration:\n\r");
   radio.printDetails();
 }
 
 void loop(void)
 {
+  if (state == joining) {
+    radio.openWritingPipe(pipes[1]);
+    bool ok = radio.write( &time, sizeof(command_e) );
+
+  }
+  /*
   //
   // Ping out role.  Repeatedly send the current time
   //
@@ -202,6 +198,10 @@ void loop(void)
     }
   }
 
+  if ( role == role_idle ) {
+    delay(100);
+  }
+
   //
   // Change roles
   //
@@ -209,7 +209,7 @@ void loop(void)
   if ( Serial.available() )
   {
     char c = toupper(Serial.read());
-    if ( c == 'T' && role == role_pong_back )
+    if ( c == 'T' && role != role_ping_out )
     {
       printf("*** CHANGING TO TRANSMIT ROLE -- PRESS 'R' TO SWITCH BACK\n\r");
 
@@ -218,7 +218,7 @@ void loop(void)
       radio.openWritingPipe(pipes[0]);
       radio.openReadingPipe(1,pipes[1]);
     }
-    else if ( c == 'R' && role == role_ping_out )
+    else if ( c == 'R' && role != role_pong_back )
     {
       printf("*** CHANGING TO RECEIVE ROLE -- PRESS 'T' TO SWITCH BACK\n\r");
       
@@ -227,6 +227,11 @@ void loop(void)
       radio.openWritingPipe(pipes[1]);
       radio.openReadingPipe(1,pipes[0]);
     }
-  }
+    else if ( c == 'I' && role != role_idle )
+    {
+      printf("*** CHANGING IDLE -- PRESS 'T' or 'R' TO SWITCH BACK\n\r");
+      role = role_idle;
+    }
+  }*/
 }
 // vim:cin:ai:sts=2 sw=2 ft=cpp

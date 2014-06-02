@@ -4,3 +4,6 @@
 [submodule "code/lib/RF24"]
 	path = code/lib/RF24
 	url = git@github.com:nivwusquorum/RF24.git
+[submodule "code/lib/logging"]
+	path = code/lib/logging
+	url = git@github.com:mrRobot62/Arduino-logging-library.git
