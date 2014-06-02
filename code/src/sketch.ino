@@ -1,10 +1,10 @@
-// nrf24_server.pde
+// nrf24_client.pde
 // -*- mode: C++ -*-
-// Example sketch showing how to create a simple messageing server
+// Example sketch showing how to create a simple messageing client
 // with the RH_NRF24 class. RH_NRF24 class does not provide for addressing or
-// reliability, so you should only use RH_NRF24  if you do not need the higher
+// reliability, so you should only use RH_NRF24 if you do not need the higher
 // level messaging abilities.
-// It is designed to work with the other example nrf24_client
+// It is designed to work with the other example nrf24_server.
 // Tested on Uno with Sparkfun NRF25L01 module
 // Tested on Anarduino Mini (http://www.anarduino.com/mini/) with RFM73 module
 // Tested on Arduino Mega with Sparkfun WRL-00691 NRF25L01 module
@@ -32,29 +32,36 @@ void setup()
     Serial.println("setRF failed");    
 }
 
+
 void loop()
 {
-  if (nrf24.available())
-  {
-    // Should be a message for us now   
-    uint8_t buf[RH_NRF24_MAX_MESSAGE_LEN];
-    uint8_t len = sizeof(buf);
+  Serial.println("Sending to nrf24_server");
+  // Send a message to nrf24_server
+  uint8_t data[] = "Hello Szymon!";
+  nrf24.send(data, sizeof(data));
+  
+  nrf24.waitPacketSent();
+  // Now wait for a reply
+  uint8_t buf[RH_NRF24_MAX_MESSAGE_LEN];
+  uint8_t len = sizeof(buf);
+
+  if (nrf24.waitAvailableTimeout(500))
+  { 
+    // Should be a reply message for us now   
     if (nrf24.recv(buf, &len))
     {
-//      NRF24::printBuffer("request: ", buf, len);
-      Serial.print("got request: ");
+      Serial.print("got reply: ");
       Serial.println((char*)buf);
-      
-      // Send a reply
-      uint8_t data[] = "And hello back to you";
-      nrf24.send(data, sizeof(data));
-      nrf24.waitPacketSent();
-      Serial.println("Sent a reply");
     }
     else
     {
       Serial.println("recv failed");
     }
   }
+  else
+  {
+    Serial.println("No reply, is nrf24_server running?");
+  }
+  delay(400);
 }
 
