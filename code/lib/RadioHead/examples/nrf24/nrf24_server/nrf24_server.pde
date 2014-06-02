@@ -13,9 +13,9 @@
 #include <RH_NRF24.h>
 
 // Singleton instance of the radio driver
-// RH_NRF24 nrf24;
+RH_NRF24 nrf24;
 // RH_NRF24 nrf24(8, 7); // use this to be electrically compatible with Mirf
-RH_NRF24 nrf24(8, 10);// For Leonardo, need explicit SS pin
+// RH_NRF24 nrf24(8, 10);// For Leonardo, need explicit SS pin
 // RH_NRF24 nrf24(8, 7); // For RFM73 on Anarduino Mini
 
 void setup() 
