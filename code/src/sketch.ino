@@ -8,6 +8,8 @@
 // Pin 13 has an LED connected on most Arduino boards.
 // give it a name:
 
+bool read_tokens(int deadline, int number);
+
 int led = 9;
 int photores = 0;
 
@@ -30,6 +32,8 @@ void setup() {
   // initialize the digital pin as an output.
 }
 
+int buffer[10];
+
 
 
 uint16_t lower, upper;
@@ -47,71 +51,26 @@ int smooth_read(int ms){
 }
 
 
-typedef enum {TOKEN_A=1, TOKEN_B=2, TOKEN_C=3, TOKEN_D=4, TOKEN_E=5, TOKEN_E2=6 } state_e;
-int state_values [] = {0,0,0,0,0};
+int state_values[5];
 
 int minimal_value = 0;
 
 
 bool initialization_sequence() {
-    long start = millis();
-    state_e state = TOKEN_E;
+    bool success = true;
     state_values[0] = minimal_value;
-    int cur = smooth_read(10);
-    int peak = cur;
-
-    bool success = false;
-    while(millis() <= start + 3000 && !success) {
-        cur = smooth_read(30) ;
-        /*Serial.print("Reading = ");
-        Serial.println(cur);
-        Serial.print("Peak = ");
-        Serial.println(peak);
-        Serial.print("State = ");
-        Serial.println(state);*/
-
-        switch ((state)) {
-            case TOKEN_E:
-              peak = max(peak, cur);
-              if (cur + 10 < peak) {
-                state_values[4] = peak;
-                peak = cur;
-                state = TOKEN_B;
-              }
-              break;
-            case TOKEN_B:
-              peak = min(peak, cur);
-              if (cur - 10 > peak) {
-                state_values[1] = peak;
-                peak = cur;
-                state = TOKEN_D;
-              }
-              break;
-            case TOKEN_D:
-              peak = max(peak, cur);  
-              if (cur + 10 < peak) {
-                state_values[3] = peak;
-                peak = cur;
-                state = TOKEN_C;
-              }
-              break;
-            case TOKEN_C:
-              peak = min(peak, cur);
-              if (cur - 10 > peak) {
-                state_values[2] = peak;
-                peak = cur;
-                state = TOKEN_E2;
-              }
-              break;
-            case TOKEN_E2:
-              if (abs(cur - state_values[4]) < 20) {  // close to E
-                success = true;
-              }
-              break;
-            default:
-              // do something
-              break;
-        }
+    // make sure we are peak white.
+    int peak = smooth_read(2);
+    int cur = peak;
+    while (cur + 10 > peak) {
+        cur = smooth_read(2);
+        peak = max(peak, cur);
+    }
+    state_values[4] = peak;
+    if (!read_tokens(3000, 3))
+        return false;
+    for (int i=0; i<3; ++i) {
+        state_values[i+1] = buffer[i];
     }
     for (int i=1; i<5; ++i) {
         if (state_values[i-1] +10 >= state_values[i]) {
@@ -122,8 +81,6 @@ bool initialization_sequence() {
 
     Serial.print("Initialization sequence resulted in ");
     Serial.println(success ? "success" : "failure");
-    Serial.print("state = ");
-    Serial.println(state);
     for (int i = 0; i<5; ++i) {
         Serial.print("value[");
         Serial.print(i);
@@ -133,6 +90,76 @@ bool initialization_sequence() {
     return success;
 }
 
+
+bool read_tokens(int deadline, int number) {
+    long start = millis();
+    int cur = 0;
+    int remaining = number;
+    // 0 - white, 1 - other
+    int state = 0;
+    int peak = 0;
+    int index = 0;
+    while (remaining >0 && millis() <= start + deadline) {
+        cur = smooth_read(1);
+        switch (state) {
+            case 0:
+                if (cur + 30 < state_values[4]) {
+                    state = 1;
+                    peak = cur;
+                }                      
+                break;
+            case 1:
+                peak = min(cur, peak);
+                if (cur +15 >= state_values[4]) {
+                    state = 0;
+                    // pick the one closest to optimal value
+                    buffer[index++] = peak;
+                    remaining--; 
+                    Serial.print(remaining);
+                    Serial.print(" ");
+                }
+                break;
+            default:
+                break;
+                // do something
+        }
+    }
+    Serial.println();
+    return remaining == 0;
+}
+
+char text[10];
+
+bool print_code() {
+    int sum = 0;
+    Serial.print("Analyzing code ");
+    for (int i=0; i<9; ++i) {
+        Serial.print(buffer[i]);
+        Serial.print(" ");
+    }
+    Serial.println();
+    for (int i=0; i<8; ++i) {
+        sum += buffer[i];
+    }
+    if ((sum % 4) != buffer[8]) {
+        Serial.println("Parity failed!");
+        return false;
+    } else {
+        int index = 0;
+        for(int i=0; i<8; i+=2) {
+            char c = 4*buffer[i] + buffer[i+1];
+            if (0 <= c && c <= 9) c += '0';
+            else c = c - 10 + 'a';
+            text[index++] = c;
+        }
+        text[index++] = 0;
+        Serial.print("Got code: ");
+        Serial.print(text);
+        Serial.println("!!!!!!!!!!!!!!!");
+        return true;
+    }
+
+}
 
 void loop() {
 
@@ -153,42 +180,39 @@ void loop() {
 
 
     int cur = smooth_read(50);
-    Serial.print("Reading = ");
-    Serial.println(cur);
-/*
-    if (cur > minimal_value + 70 && minimal_value +200 < upper && cur + 80 < upper) {
+
+    if (cur > minimal_value + 150 && minimal_value +200 < upper) {
         Serial.println("First black");
         if (initialization_sequence()) {
             Serial.println("Scanning continues");
-            long start = millis();
-            int oldest=0, old=0, cur = 0;
-            int remaining = 17;
-            int last_token = 4; 
-            while (remaining >=0 && millis() <= start + 10000) {
-                cur = smooth_read(2);
-                for (int i=0; i<4; ++i) {
-                    if (i == last_token) continue;
-                    if (abs(oldest - state_values[i]) < 30 &&
-                        abs(old - state_values[i]) < 20 &&
-                        abs(cur - state_values[i]) < 30) {
-                        Serial.print("Got token: ");
-                        Serial.println(i);
-                        remaining--; 
-                        last_token = i;
-                        break;
+            if (read_tokens(10000, 9)) {
+                for (int j=0; j<9; ++j) {
+                    int token = 0;
+                    int peak = buffer[j];
+                    for (int i=0; i<4; ++i) {
+                        if (abs(peak - state_values[i]) < abs(peak - state_values[token])) {
+                            token = i;
+                        }
                     }
+                    Serial.print("Peak ");
+                    Serial.print(peak);
+                    Serial.print(" generates ");
+                    Serial.println(token);
+                    buffer[j] = token;
                 }
-                oldest = old;
-                old = cur;
+                print_code();
+                Serial.println("Scanning done.");
+            } else {
+                Serial.println("Scanning failure.");
             }
-            Serial.println("Scanning done.");
         } else {
+            Serial.println("Init failed");
             cur = upper;
             minimal_value = upper;
         }
     }
 
-*/
+
 
     minimal_value = min(cur,minimal_value);
 }

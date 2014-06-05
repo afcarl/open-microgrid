@@ -1,9 +1,9 @@
 from PIL import Image, ImageDraw
 
 colors = [(0, 0, 0),
-          (40, 40, 40),
-          (90, 90, 90),
-          (150, 150, 150),
+          (55, 55, 55),
+          (110, 110, 110),
+          (190, 190, 190),
           (255, 255, 255)]
 """
 codes = ['284a52cf56753b8baab74acc5f07a643',
@@ -28,6 +28,7 @@ codes = ['284a52cf56753b8baab74acc5f07a643',
          '56d59b27e03780823e9256a7938b0204']
 """
 
+"""
 codes = ['284a52cf',
          '0bb5daf5',
          'c902a266',
@@ -48,6 +49,28 @@ codes = ['284a52cf',
          '07bb4be2',
          '58e2c2b3',
          '56d59b27']
+"""
+
+codes = ['284a',
+         '0bb5',
+         'c902',
+         '3aa4',
+         '2bf3',
+         '3cfc',
+         '0da7',
+         'fb20',
+         '18e8',
+         '4999',
+         '36b2',
+         '1f0f',
+         '8658',
+         'c0b1',
+         'f386',
+         'e8af',
+         '1b9e',
+         '07bb',
+         '58e2',
+         '56d5']
 
 
 def draw_code(dr, pos, code):
@@ -57,7 +80,7 @@ def draw_code(dr, pos, code):
         dr.rectangle([ (w, h), (w+30, h+35)], rect_color)
         w+=30
 
-    for init_color in [1,5,2,4,3,5]:
+    for init_color in [1,5,2,5,3,5,4]:
         put_rectange(colors[init_color-1])
 
     number = int(code, base=16)
@@ -72,16 +95,13 @@ def draw_code(dr, pos, code):
     parity = sum(base_four) % 4
     base_four.append(parity)
 
-    last_color = 4
     num_stripes = 0
-    code_colors = []
+
     for digit in base_four:
-        next_color = (last_color + digit + 1) % 5
-        code_colors.append(next_color)
-        put_rectange(colors[next_color])
-        num_stripes += 1
-        last_color = next_color
-    print("Code colors = %s" % code_colors)
+        put_rectange(colors[4])
+        put_rectange(colors[digit])
+        num_stripes += 2
+    print("Code colors = %s" % base_four)
     print("printed %d stripes" % num_stripes)
 
 im = Image.new("RGB", (900, 1224), "white")
