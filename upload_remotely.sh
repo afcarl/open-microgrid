@@ -21,7 +21,11 @@ else
     exit 1
 fi
 
-rsync -ar --delete --itemize-changes --exclude=.build --delete-excluded --human-readable --progress -e ssh code/ "$TARGET_BOX:~/.arduino_code"
+pushd $DIR/code
+ino build -m leonardo
+popd
+
+rsync -ar --delete --itemize-changes --exclude=.build/environment.pickle --delete-excluded --human-readable --progress -e ssh $DIR/code/ "$TARGET_BOX:~/.arduino_code"
 rsync -ar $DIR/reset-arduino.py "$TARGET_BOX:~/reset-arduino.py"
 
 
@@ -34,15 +38,15 @@ then
         ino build -m leonardo
         if [[ $(hostname) == "raspberrypi" ]]
         then
-            SLEEP_TIME=2
+            SLEEP_TIME=3
             echo "special treatment for retarded rpi"
         else
             SLEEP_TIME=2
         fi
         for x in /dev/arduino*
         do 
-            echo "uploading code to $x"
-            sleep 2s && python ~/reset-arduino.py $x &
+            echo "uploading code to $x (reset after ${SLEEP_TIME}s)"
+            sleep ${SLEEP_TIME}s && python ~/reset-arduino.py $x &
             ino upload -m leonardo -p $x || {
                 echo "ERROR uploading to $x!!!!"
             }
@@ -56,15 +60,15 @@ else
         ino build -m leonardo
         if [[ $(hostname) == "raspberrypi" ]]
         then
-            SLEEP_TIME=2
+            SLEEP_TIME=3
             echo "special treatment for retarded rpi"
         else
             SLEEP_TIME=2
         fi
         for x in /dev/arduino'$DEVICE'
         do 
-            echo "uploading code to $x"
-            sleep 1s && python ~/reset-arduino.py $x &
+            echo "uploading code to $x (reset after ${SLEEP_TIME}s)"
+            sleep ${SLEEP_TIME}s && python ~/reset-arduino.py $x &
             ino upload -m leonardo -p $x
         done'
 fi
