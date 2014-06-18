@@ -1,9 +1,9 @@
 from PIL import Image, ImageDraw
 
 colors = [(0, 0, 0),
-          (55, 55, 55),
-          (110, 110, 110),
-          (190, 190, 190),
+          (50, 50, 50),
+          (100, 100, 100),
+          (150, 150, 150),
           (255, 255, 255)]
 """
 codes = ['284a52cf56753b8baab74acc5f07a643',
@@ -72,6 +72,7 @@ codes = ['284a',
          '58e2',
          '56d5']
 
+LEFT_MARGIN = 300
 
 def draw_code(dr, pos, code):
     w, h = pos
@@ -104,11 +105,11 @@ def draw_code(dr, pos, code):
     print("Code colors = %s" % base_four)
     print("printed %d stripes" % num_stripes)
 
-im = Image.new("RGB", (900, 1224), "white")
+im = Image.new("RGB", (LEFT_MARGIN + 900, 900), "white")
 dr = ImageDraw.Draw(im);
 for i, code in enumerate(codes):
-    dr.text((30, 40*i+35), code, (0,0,0))
+    dr.text((LEFT_MARGIN + 30, 40*i+35), code, (0,0,0))
     w, _ = dr.textsize(code)
-    draw_code(dr, (w+50, 40*i+30), code)
+    draw_code(dr, (LEFT_MARGIN+w+50, 40*i+30), code)
 
-im.save("codes.jpg");
+im.save("codes.jpg", quality=95);

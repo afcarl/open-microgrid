@@ -1,218 +1,111 @@
-/*
-  Blink
-  Turns on an LED on for one second, then off for one second, repeatedly.
- 
-  This example code is in the public domain.
- */
- 
-// Pin 13 has an LED connected on most Arduino boards.
-// give it a name:
+#include <EEPROM.h>
+#include <Logging.h>
+#include <smart_assert.h>
 
-bool read_tokens(int deadline, int number);
-
-int led = 9;
-int photores = 0;
-
-long start_time = 0;
-long read_counter = 0;
-
-bool calibrated = false;
-
-// the setup routine runs once when you press reset:
-void setup() {         
-
-  pinMode(led, OUTPUT);     
-
-  Serial.begin(57600);
-  while (!Serial) {
-    // Wait for serial connect. Only needed for the Leonardo
-    delay(20);
-  }  
-  start_time = millis();
-  // initialize the digital pin as an output.
-}
-
-int buffer[10];
+#define RH_MESH_MAX_MESSAGE_LEN 50
+#include <RHMesh.h>
+#include <RH_NRF24.h>
+#include <SPI.h>
 
 
+// Singleton instance of the radio driver
+RH_NRF24 driver(8, 10);
+// This code manages mesh network state and actions - maintains packets,
+// discovers routes etc. Address will be later updated 
+RHMesh manager(driver, 0);
 
-uint16_t lower, upper;
+uint8_t data[] = "Hello from X!";
+uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
 
+uint8_t my_number = 0;
 
-int smooth_read(int ms){
-    long start = millis();
-    long value = 0;
-    int readings = 0;
-    while(readings < 10 || millis() <= start + (long)ms) {
-        value += analogRead(photores);
-        readings++;
+#define NUMBER_OF_NODES 3
+
+// was data exchanged with node i
+bool data_exchanged[NUMBER_OF_NODES];
+const unsigned long RECEIVE_MODE_DURATION = 3000;
+
+uint8_t len, from;
+
+void setup() 
+{
+    Log.Init(LOG_LEVEL_DEBUG, 57600);
+    while (!Serial) {
+      // Wait for serial connect. Only needed for the Leonardo
+      delay(20);
     }
-    return value / readings;
-}
-
-
-int state_values[5];
-
-int minimal_value = 0;
-
-
-bool initialization_sequence() {
-    bool success = true;
-    state_values[0] = minimal_value;
-    // make sure we are peak white.
-    int peak = smooth_read(2);
-    int cur = peak;
-    while (cur + 10 > peak) {
-        cur = smooth_read(2);
-        peak = max(peak, cur);
+    my_number = EEPROM.read(0);
+    manager.setThisAddress(my_number);
+    data[11] = '0' + my_number;
+    for (uint8_t i=0; i<NUMBER_OF_NODES; ++i) {
+        data_exchanged[i] = false;
     }
-    state_values[4] = peak;
-    if (!read_tokens(3000, 3))
-        return false;
-    for (int i=0; i<3; ++i) {
-        state_values[i+1] = buffer[i];
-    }
-    for (int i=1; i<5; ++i) {
-        if (state_values[i-1] +10 >= state_values[i]) {
-            success = false;
-            break;
-        }
-    }
+    data_exchanged[my_number] = true;
 
-    Serial.print("Initialization sequence resulted in ");
-    Serial.println(success ? "success" : "failure");
-    for (int i = 0; i<5; ++i) {
-        Serial.print("value[");
-        Serial.print(i);
-        Serial.print("] = ");
-        Serial.println(state_values[i]);
-    }
-    return success;
-}
-
-
-bool read_tokens(int deadline, int number) {
-    long start = millis();
-    int cur = 0;
-    int remaining = number;
-    // 0 - white, 1 - other
-    int state = 0;
-    int peak = 0;
-    int index = 0;
-    while (remaining >0 && millis() <= start + deadline) {
-        cur = smooth_read(1);
-        switch (state) {
-            case 0:
-                if (cur + 30 < state_values[4]) {
-                    state = 1;
-                    peak = cur;
-                }                      
-                break;
-            case 1:
-                peak = min(cur, peak);
-                if (cur +15 >= state_values[4]) {
-                    state = 0;
-                    // pick the one closest to optimal value
-                    buffer[index++] = peak;
-                    remaining--; 
-                    Serial.print(remaining);
-                    Serial.print(" ");
-                }
-                break;
-            default:
-                break;
-                // do something
-        }
-    }
-    Serial.println();
-    return remaining == 0;
-}
-
-char text[10];
-
-bool print_code() {
-    int sum = 0;
-    Serial.print("Analyzing code ");
-    for (int i=0; i<9; ++i) {
-        Serial.print(buffer[i]);
-        Serial.print(" ");
-    }
-    Serial.println();
-    for (int i=0; i<8; ++i) {
-        sum += buffer[i];
-    }
-    if ((sum % 4) != buffer[8]) {
-        Serial.println("Parity failed!");
-        return false;
-    } else {
-        int index = 0;
-        for(int i=0; i<8; i+=2) {
-            char c = 4*buffer[i] + buffer[i+1];
-            if (0 <= c && c <= 9) c += '0';
-            else c = c - 10 + 'a';
-            text[index++] = c;
-        }
-        text[index++] = 0;
-        Serial.print("Got code: ");
-        Serial.print(text);
-        Serial.println("!!!!!!!!!!!!!!!");
-        return true;
-    }
-
+    randomSeed(analogRead(0));
+    if (!manager.init())
+        Log.Error("Mesh init failed."CR);
 }
 
 void loop() {
-
-    if (!calibrated) {
-        lower = smooth_read(500);
-        digitalWrite(led, HIGH);
-        upper = smooth_read(500);
-
-        if (lower + 100 < upper) {
-            Serial.print("Lower, upper = ");
-            Serial.print(lower);
-            Serial.print(", ");
-            Serial.println(upper);
-            minimal_value = upper;
-            calibrated = true;
-        }
+    Log.Debug("Loop step for %d."CR, my_number);
+    // choosing role randomly
+    bool job_finished = true;
+    for (uint8_t i = 0; i<NUMBER_OF_NODES; ++i)
+        if (!data_exchanged[i])
+            job_finished = false;
+    if (job_finished) {
+      Log.Debug("  Has communicated with all nodes."CR);
     }
-
-
-    int cur = smooth_read(50);
-
-    if (cur > minimal_value + 150 && minimal_value +200 < upper) {
-        Serial.println("First black");
-        if (initialization_sequence()) {
-            Serial.println("Scanning continues");
-            if (read_tokens(10000, 9)) {
-                for (int j=0; j<9; ++j) {
-                    int token = 0;
-                    int peak = buffer[j];
-                    for (int i=0; i<4; ++i) {
-                        if (abs(peak - state_values[i]) < abs(peak - state_values[token])) {
-                            token = i;
-                        }
-                    }
-                    Serial.print("Peak ");
-                    Serial.print(peak);
-                    Serial.print(" generates ");
-                    Serial.println(token);
-                    buffer[j] = token;
-                }
-                print_code();
-                Serial.println("Scanning done.");
-            } else {
-                Serial.println("Scanning failure.");
+    if(!job_finished && random(0, 2) == 0) {
+        uint8_t target = 255;
+        for (uint8_t i = 0; i<NUMBER_OF_NODES; ++i) {
+            if (!data_exchanged[i]) {
+                target = i;
+                break;
             }
-        } else {
-            Serial.println("Init failed");
-            cur = upper;
-            minimal_value = upper;
+        }
+        assert(target != 255);
+        Log.Debug("  Trying to communicate with %d"CR, target);
+        if (manager.sendtoWait(data, sizeof(data), target) == RH_ROUTER_ERROR_NONE) {
+            Log.Debug("    Data transmitted to next hop, waiting for reply"CR);
+            // It has been reliably delivered to the next node.
+            // Now wait for a reply from the ultimate server
+            len = sizeof(buf);
+            if (manager.recvfromAckTimeout(buf, &len, 1000, &from))
+            {
+                Log.Debug("    REPLY from %d: %s"CR, from, (char*)buf);
+                if (from == target) {
+                    data_exchanged[target] = true;
+                    Log.Debug("    Data exchanged successfully with %d."CR, target);
+                } else {
+                    Log.Debug("    Failure expected reply from %d, but got from %d."CR, target, from);
+                }
+            }
+            else
+            {
+                Log.Debug("    No reply received from %d."CR, target);
+            }
+        }
+        else {
+            Log.Debug("    Send to %d failed."CR, target);
+        }
+    } else {
+        Log.Debug("  Entering receive mode."CR);
+        unsigned long when_to_finish = millis() + RECEIVE_MODE_DURATION;
+        while (millis() < when_to_finish) {
+            unsigned long timeout = when_to_finish - millis();
+            if (timeout <= 0)
+                break;
+            if (manager.recvfromAckTimeout(buf, &len, timeout, &from)) {
+                Log.Debug("    REQUEST from %d: %s"CR, from, (char*)buf);
+                // Send a reply back to the originator client
+                if (manager.sendtoWait(data, sizeof(data), from) == RH_ROUTER_ERROR_NONE) {
+                    Log.Debug("    Reply sent!"CR);
+                } else {
+                    Log.Debug("    Error sending reply!"CR);
+                }
+            }
         }
     }
-
-
-
-    minimal_value = min(cur,minimal_value);
 }
