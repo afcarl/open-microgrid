@@ -1,6 +1,8 @@
 #include <EEPROM.h>
 #include <Logging.h>
 #include <smart_assert.h>
+#include <power_client_api.h>
+#include <grid_utils.h>
 
 #define RH_MESH_MAX_MESSAGE_LEN 50
 #include <RHMesh.h>
@@ -14,16 +16,19 @@ RH_NRF24 driver(8, 10);
 // discovers routes etc. Address will be later updated 
 RHMesh manager(driver, 0);
 
-uint8_t data[] = "Hello from X!";
 uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
 
 uint8_t my_number = 0;
 
-#define NUMBER_OF_NODES 3
 
-// was data exchanged with node i
-bool data_exchanged[NUMBER_OF_NODES];
-const unsigned long RECEIVE_MODE_DURATION = 3000;
+// currently Arduino connected to rpi acts as a "generator". It's number is 1. Other nodes are
+// 0 and 2.
+#define GENERATOR_NUMBER 1
+
+// control pins for electricity output. Enabled on LOW.
+#define GRID_OUTPUT_12V 12
+#define GRID_OUTPUT_5V 5
+
 
 uint8_t len, from;
 
@@ -34,78 +39,67 @@ void setup()
       // Wait for serial connect. Only needed for the Leonardo
       delay(20);
     }
+    Serial.setTimeout(100);
+
+    pinMode(GRID_OUTPUT_12V, OUTPUT);
+    pinMode(GRID_OUTPUT_5V, OUTPUT);
+
+    // off on high
+    digitalWrite(GRID_OUTPUT_12V, HIGH);
+    digitalWrite(GRID_OUTPUT_5V, HIGH);
+
     my_number = EEPROM.read(0);
     manager.setThisAddress(my_number);
-    data[11] = '0' + my_number;
-    for (uint8_t i=0; i<NUMBER_OF_NODES; ++i) {
-        data_exchanged[i] = false;
-    }
-    data_exchanged[my_number] = true;
 
-    randomSeed(analogRead(0));
-    if (!manager.init())
-        Log.Error("Mesh init failed."CR);
+    assert (manager.init());
+
+    Log.Debug("Setup complete for %d."CR, my_number);
+    if (my_number == GENERATOR_NUMBER) {
+        Log.Debug("Generator mode."CR);
+    } else {
+        Log.Debug("Client mode."CR);
+        Log.Debug("Press R to issue a power request."CR);
+    }
 }
 
 void loop() {
-    Log.Debug("Loop step for %d."CR, my_number);
-    // choosing role randomly
-    bool job_finished = true;
-    for (uint8_t i = 0; i<NUMBER_OF_NODES; ++i)
-        if (!data_exchanged[i])
-            job_finished = false;
-    if (job_finished) {
-      Log.Debug("  Has communicated with all nodes."CR);
-    }
-    if(!job_finished && random(0, 2) == 0) {
-        uint8_t target = 255;
-        for (uint8_t i = 0; i<NUMBER_OF_NODES; ++i) {
-            if (!data_exchanged[i]) {
-                target = i;
-                break;
-            }
-        }
-        assert(target != 255);
-        Log.Debug("  Trying to communicate with %d"CR, target);
-        if (manager.sendtoWait(data, sizeof(data), target) == RH_ROUTER_ERROR_NONE) {
-            Log.Debug("    Data transmitted to next hop, waiting for reply"CR);
-            // It has been reliably delivered to the next node.
-            // Now wait for a reply from the ultimate server
-            len = sizeof(buf);
-            if (manager.recvfromAckTimeout(buf, &len, 1000, &from))
-            {
-                Log.Debug("    REPLY from %d: %s"CR, from, (char*)buf);
-                if (from == target) {
-                    data_exchanged[target] = true;
-                    Log.Debug("    Data exchanged successfully with %d."CR, target);
-                } else {
-                    Log.Debug("    Failure expected reply from %d, but got from %d."CR, target, from);
-                }
-            }
-            else
-            {
-                Log.Debug("    No reply received from %d."CR, target);
-            }
-        }
-        else {
-            Log.Debug("    Send to %d failed."CR, target);
-        }
+    if (my_number == GENERATOR_NUMBER) {
+        generator_loop();
     } else {
-        Log.Debug("  Entering receive mode."CR);
-        unsigned long when_to_finish = millis() + RECEIVE_MODE_DURATION;
-        while (millis() < when_to_finish) {
-            unsigned long timeout = when_to_finish - millis();
-            if (timeout <= 0)
-                break;
-            if (manager.recvfromAckTimeout(buf, &len, timeout, &from)) {
-                Log.Debug("    REQUEST from %d: %s"CR, from, (char*)buf);
-                // Send a reply back to the originator client
-                if (manager.sendtoWait(data, sizeof(data), from) == RH_ROUTER_ERROR_NONE) {
-                    Log.Debug("    Reply sent!"CR);
-                } else {
-                    Log.Debug("    Error sending reply!"CR);
-                }
-            }
+        client_loop();
+    }
+}
+
+void generator_loop() {
+    delay(1000);
+}
+
+void on_power_request() {
+    Serial.println(F("Request for power."));
+    PowerRequest res = PowerClientApi::power_request_from_stdin();
+    Serial.println(F("You created the following power request:"));
+    PowerClientApi::power_request_to_stdin(res);
+    int temp = GridUtils::get_int(
+        F("Do you want to submit to generating node (option 0) or cancel (option 1) [0/1]: "),
+        GridUtils::validate01);
+    
+    if (temp == 0) {
+        Serial.println(F("Yeee haw"));
+    } else {
+        Serial.println(F("buuuu...."));
+    }
+}
+
+void client_loop() {
+    uint8_t bytes_read = Serial.readBytes((char*)buf, 1);
+    if (bytes_read > 0) {
+        assert(bytes_read == 1);
+        switch (buf[0]) {
+          case 'R':
+            on_power_request();
+            break;
+          default:
+            Serial.println(F("Invalid command."));
         }
     }
 }
