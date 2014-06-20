@@ -1,8 +1,9 @@
 #include "power_client_api.h"
 
 
-PowerRequest PowerClientApi::power_request_from_stdin() {
-    PowerRequest res;
+PowerRequestMessage PowerClientApi::power_request_from_stdin() {
+    PowerRequestMessage res;
+
     int temp;
     res.flags = 0;
 
@@ -31,10 +32,11 @@ PowerRequest PowerClientApi::power_request_from_stdin() {
 
     temp = GridUtils::get_int(F("For how long do you need power (in seconds): "), GridUtils::validate_byte);
     res.duration = temp;
+    return res;
 
 }
 
-void PowerClientApi::power_request_to_stdin(const PowerRequest& request) {
+void PowerClientApi::power_request_to_stdin(const PowerRequestMessage& request) {
     Serial.print(F("Request for "));
     Serial.print((request.flags & (1<<0)) ? F("uncritical") : F("critical"));
     Serial.print(F(" load at "));
@@ -47,3 +49,4 @@ void PowerClientApi::power_request_to_stdin(const PowerRequest& request) {
     Serial.print(request.duration);
     Serial.println(F(" seconds."));
 }
+
