@@ -65,9 +65,9 @@ void setup()
 
     Log.Debug("Setup complete for %d."CR, my_number);
     if (my_number == GENERATOR_NUMBER) {
-        Log.Debug("Generator mode."CR);
+        Serial.println(F("Generator mode."));
     } else {
-        Log.Debug("Client mode."CR);
+        Serial.println(F("Client mode."));
         client_instructions();
     }
 }
@@ -84,6 +84,7 @@ void handle_message(GridMessage* message) {
             Serial.println(F("Received power request."));
             message->describe();
             on_power_request(*(PowerRequestMessage*)message);
+            delete message;
         }
         // clean up our mess;
         delete message;
@@ -139,6 +140,19 @@ void issue_power_request() {
                 if (temp == 0)  break;
             } else {
                 reply->describe();
+                PowerResponseMessage* response = (PowerResponseMessage*)reply;
+                if (response->response == PowerResponseMessage::GRANTED) {
+                    long delay = millis() + 1000*response->when;
+
+                    if (res.flags & (1<<1)) {  // 12V
+                        scheduler.push(PowerEvent(PowerEvent::P12V_ON, delay));
+                        scheduler.push(PowerEvent(PowerEvent::P12V_OFF, delay+1000*res.duration));
+                    } else {  // 5V 
+                        scheduler.push(PowerEvent(PowerEvent::P5V_ON, delay));
+                        scheduler.push(PowerEvent(PowerEvent::P5V_OFF, delay+1000*res.duration));                       
+                    }
+                }
+                delete reply;
                 break;
             }
         }
@@ -158,6 +172,33 @@ void client_loop() {
             break;
           default:
             Serial.println(F("Invalid command."));
+        }
+    }
+    handle_power_events();
+}
+
+void handle_power_events() {
+    while(scheduler.available()) {
+        PowerEvent e = scheduler.pop();
+        switch (e.type) {
+            case PowerEvent::P12V_ON:
+              Serial.println(F("12V ON"));
+              //digitalWrite(GRID_OUTPUT_12V, LOW);
+              break;
+            case PowerEvent::P12V_OFF:
+              Serial.println(F("12V OFF"));
+              //digitalWrite(GRID_OUTPUT_12V, HIGH);
+              break;
+            case PowerEvent::P5V_ON:
+              Serial.println(F("5V ON"));
+              //digitalWrite(GRID_OUTPUT_5V, LOW);
+              break;
+            case PowerEvent::P5V_OFF:
+              Serial.println(F("5V OFF"));
+              //digitalWrite(GRID_OUTPUT_5V, HIGH);
+              break;
+            default:
+              break;
         }
     }
 }
