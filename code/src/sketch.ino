@@ -183,19 +183,19 @@ void handle_power_events() {
         switch (e.type) {
             case PowerEvent::P12V_ON:
               Serial.println(F("12V ON"));
-              //digitalWrite(GRID_OUTPUT_12V, LOW);
+              digitalWrite(GRID_OUTPUT_12V, LOW);
               break;
             case PowerEvent::P12V_OFF:
               Serial.println(F("12V OFF"));
-              //digitalWrite(GRID_OUTPUT_12V, HIGH);
+              digitalWrite(GRID_OUTPUT_12V, HIGH);
               break;
             case PowerEvent::P5V_ON:
               Serial.println(F("5V ON"));
-              //digitalWrite(GRID_OUTPUT_5V, LOW);
+              digitalWrite(GRID_OUTPUT_5V, LOW);
               break;
             case PowerEvent::P5V_OFF:
               Serial.println(F("5V OFF"));
-              //digitalWrite(GRID_OUTPUT_5V, HIGH);
+              digitalWrite(GRID_OUTPUT_5V, HIGH);
               break;
             default:
               break;

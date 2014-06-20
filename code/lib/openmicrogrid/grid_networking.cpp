@@ -19,7 +19,7 @@ GridMessage* GridNetworking::receive_message() {
 
 bool GridNetworking::transmit_message(const GridMessage& request, uint8_t target) {
 
-    Log.Debug("  Trying to communicate with %d"CR, target);
+    Log.Debug("NETWORK: Trying to communicate with %d"CR, target);
 
     request.to_buffer(buf, &len);
     if (manager.sendtoWait(buf, len, target) == RH_ROUTER_ERROR_NONE) {
