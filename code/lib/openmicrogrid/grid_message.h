@@ -15,11 +15,18 @@ class GridMessage {
   public:
     typedef enum {
         POWER_REQUEST_MESSAGE = 1,
+        POWER_RESPONSE_MESSAGE
     } message_type;
   public:
     message_type type;
+    uint8_t from;
 
     GridMessage(message_type _type): type(_type) {}
+
+    virtual void describe() const;
+
+    virtual void to_buffer(uint8_t* buffer, uint8_t* len) const;
+
     static GridMessage* parse(const uint8_t* buffer, const uint8_t& len);
 };
 
@@ -49,12 +56,38 @@ struct PowerRequestMessage : GridMessage {
                                              duration(_duration) {
     }
 
+    void describe() const;
     void to_buffer(uint8_t* buffer, uint8_t* len) const;
 
     static PowerRequestMessage* parse(const uint8_t* buffer, const uint8_t& len);
 };
 
 
+struct PowerResponseMessage : GridMessage {
+    typedef enum {
+        GRANTED = 1,
+        DENIED
+    } response_type;
+    // flags from least significant bit:
+    // - critical/uncritical (1 for uncritical)
+    // - 5V/12V (1 for 12V)
+    response_type response;
+    uint8_t when;
+
+    PowerResponseMessage() : GridMessage(POWER_RESPONSE_MESSAGE) {
+    }
+
+    PowerResponseMessage(response_type _response,
+                        uint8_t _when) : GridMessage(POWER_RESPONSE_MESSAGE),
+                                         response(_response),
+                                         when(_when) {
+    }
+
+    void describe() const;
+    void to_buffer(uint8_t* buffer, uint8_t* len) const;
+
+    static PowerResponseMessage* parse(const uint8_t* buffer, const uint8_t& len);
+};
 
 
 #endif

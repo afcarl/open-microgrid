@@ -9,4 +9,6 @@ then
 fi
 
 ssh -t $1 "ino serial -p /dev/arduino$2" -b 57600
-
+echo "$(tput setaf 1)Now going to sleep for 10 seconds to remind you that you will fuck \
+it up if you start uploading code too early.$(tput sgr0)"
+sleep 10s

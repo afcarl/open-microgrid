@@ -28,7 +28,7 @@ class GridNetworking {
     };
 
     GridMessage* receive_message();
-    bool transmit_power_request(const PowerRequestMessage& request, uint8_t target);
+    bool transmit_message(const GridMessage& request, uint8_t target);
 };
 
 

@@ -36,17 +36,3 @@ PowerRequestMessage PowerClientApi::power_request_from_stdin() {
 
 }
 
-void PowerClientApi::power_request_to_stdin(const PowerRequestMessage& request) {
-    Serial.print(F("Request for "));
-    Serial.print((request.flags & (1<<0)) ? F("uncritical") : F("critical"));
-    Serial.print(F(" load at "));
-    Serial.print((request.flags & (1<<1)) ? F("12V") : F("5V"));
-    Serial.print(F(". Starting between "));
-    Serial.print(request.start_lb);
-    Serial.print(F(" and "));
-    Serial.print(request.start_ub);
-    Serial.print(F(" seconds from now. The power will flow for "));
-    Serial.print(request.duration);
-    Serial.println(F(" seconds."));
-}
-
