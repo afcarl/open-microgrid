@@ -209,6 +209,8 @@ void client_instructions() {
 }
 
 void loop() {
+    Serial.print(F("Testing Dan Code Upload"));
+
     if (my_number == GENERATOR_NUMBER) {
         generator_loop();
     } else {
