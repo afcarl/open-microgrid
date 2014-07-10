@@ -1,0 +1,5 @@
+contiki-econotag.a
+contiki-econotag.map
+microgrid.d
+microgrid_econotag.bin
+obj_econotag/
