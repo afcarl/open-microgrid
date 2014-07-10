@@ -1,3 +1,6 @@
 [submodule "arduino/code/lib/logging"]
 	path = arduino/code/lib/logging
 	url = git@github.com:mrRobot62/Arduino-logging-library.git
+[submodule "arduino/code/lib/LinkedList"]
+	path = arduino/code/lib/LinkedList
+	url = git@github.com:nivwusquorum/LinkedList.git
