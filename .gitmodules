@@ -4,3 +4,6 @@
 [submodule "arduino/code/lib/LinkedList"]
 	path = arduino/code/lib/LinkedList
 	url = git@github.com:nivwusquorum/LinkedList.git
+[submodule "econotag/contiki"]
+	path = econotag/contiki
+	url = git@github.com:contiki-os/contiki.git
