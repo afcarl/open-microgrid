@@ -22,7 +22,7 @@ bool PowerScheduler::available() {
 }
 
 PowerEvent PowerScheduler::pop() {
-    PowerEvent e = events.shift();
+    PowerEvent e = events.pop_front();
     Serial.print(F("Removing event from queue: "));
     e.print_me();
     return e;

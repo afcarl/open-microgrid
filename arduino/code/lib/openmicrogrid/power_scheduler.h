@@ -7,8 +7,7 @@
     #include "WProgram.h"
 #endif
 #include "grid_message.h"
-#include "LinkedList.h"
-      
+#include "linked_list.h"      
 
 struct PowerEvent {
     typedef enum {
