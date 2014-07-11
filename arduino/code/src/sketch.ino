@@ -142,14 +142,14 @@ void issue_power_request() {
                 reply->describe();
                 PowerResponseMessage* response = (PowerResponseMessage*)reply;
                 if (response->response == PowerResponseMessage::GRANTED) {
-                    long delay = millis() + 1000*response->when;
+                    long delay = millis() + (long)1000*(long)response->when;
 
                     if (res.flags & (1<<1)) {  // 12V
                         scheduler.push(PowerEvent(PowerEvent::P12V_ON, delay));
-                        scheduler.push(PowerEvent(PowerEvent::P12V_OFF, delay+1000*res.duration));
+                        scheduler.push(PowerEvent(PowerEvent::P12V_OFF, delay+(long)1000*(long)res.duration));
                     } else {  // 5V 
                         scheduler.push(PowerEvent(PowerEvent::P5V_ON, delay));
-                        scheduler.push(PowerEvent(PowerEvent::P5V_OFF, delay+1000*res.duration));                       
+                        scheduler.push(PowerEvent(PowerEvent::P5V_OFF, delay+(long)1000*(long)res.duration));                       
                     }
                 }
                 delete reply;
