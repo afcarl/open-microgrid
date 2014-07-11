@@ -170,6 +170,9 @@ void client_loop() {
           case 'R':
             issue_power_request();
             break;
+          case 'Q':
+            scheduler.print_queue();
+            break;
           default:
             Serial.println(F("Invalid command."));
         }
@@ -206,6 +209,7 @@ void handle_power_events() {
 
 void client_instructions() {
     Log.Debug("Press R to issue a power request."CR);
+    Log.Debug("Press Q to print event queue."CR);
 }
 
 void loop() {

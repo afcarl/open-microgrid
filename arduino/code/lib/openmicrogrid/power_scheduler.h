@@ -28,6 +28,31 @@ struct PowerEvent {
 
     PowerEvent() : type(DUMMY), e_time(0) {
     } 
+
+    void print_me() {
+        Serial.print("    Event ");
+        switch(type) {
+            case P12V_OFF:
+                Serial.print(F("12V OFF"));
+                break;
+            case P12V_ON:
+                Serial.print(F("12V ON"));
+                break;
+            case P5V_OFF:
+                Serial.print(F("5V OFF"));
+                break;
+            case P5V_ON:
+                Serial.print(F("5V ON"));
+                break;
+            default:
+                Serial.print(F("unknown type:"));
+                Serial.print(type);
+                break;
+        }
+        Serial.print(" Happening at ");
+        Serial.println(e_time);
+
+    }
 };
 
 class PowerScheduler {
@@ -40,6 +65,7 @@ class PowerScheduler {
     bool available();
     PowerEvent pop();
 
+    void print_queue();
 };
 
 
