@@ -11,7 +11,10 @@
 #include "grid_networking.h"
 #include "grid_message.h"
 #include "power_scheduler.h"
-
+#include "async_lcd_ui.h"
+#include "abstract_ui.h"
+#include "serial_ui.h"
+#include "one_wire_keypad.h"
 
 // Singleton instance of the radio driver
 RH_NRF24 driver(8, 10);
@@ -19,6 +22,7 @@ RH_NRF24 driver(8, 10);
 // discovers routes etc. Address will be later updated 
 RHMesh manager(driver, 0);
 
+AbstractUi* ui;
 
 uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
 
@@ -28,25 +32,22 @@ PowerScheduler scheduler;
 
 uint8_t my_number = 0;
 
+OneWireKeypad* keypad;
+
 
 // currently Arduino connected to rpi acts as a "generator". It's number is 1. Other nodes are
 // 0 and 2.
 #define GENERATOR_NUMBER 1
 
 // control pins for electricity output. Enabled on LOW.
-#define GRID_OUTPUT_12V 12
-#define GRID_OUTPUT_5V 5
+#define GRID_OUTPUT_12V 7
+#define GRID_OUTPUT_5V 6
 
 void client_instructions();
 
 void setup() 
 {
     Log.Init(LOG_LEVEL_DEBUG, 57600);
-    while (!Serial) {
-      // Wait for serial connect. Only needed for the Leonardo
-      delay(20);
-    }
-    Serial.setTimeout(100);
 
     randomSeed(analogRead(0));
 
@@ -63,14 +64,22 @@ void setup()
     assert (manager.init());
     assert (driver.setRF(RH_NRF24::DataRate250kbps, RH_NRF24::TransmitPower0dBm));
 
-    Log.Debug("Setup complete for %d."CR, my_number);
     if (my_number == GENERATOR_NUMBER) {
-        Serial.println(F("Generator mode."));
+        ui = new SerialUi();
+        ui->setup();
+        ui->display(F("Generator mode")); // "Generator Mode."
     } else {
-        Serial.println(F("Client mode."));
+        // TODO: change this to LcdUi when ready.
+        //ui = new SerialUi();
+        ui = new AsyncLcdUi();
+        ui->setup();
+        
+        ui->display(F("Client mode")); // "Client mode."
         client_instructions();
     }
+    keypad = new OneWireKeypad();
 }
+
 
 void generator_loop() {
     // currently timeout is 1000ms for receive.
@@ -81,8 +90,8 @@ void generator_loop() {
 void handle_message(GridMessage* message) {
     if (message != NULL) {
         if (message->type == GridMessage::POWER_REQUEST_MESSAGE) {
-            Serial.println(F("Received power request."));
-            message->describe();
+            ui->display(F("Received power request."));
+            message->describe(ui);
             on_power_request(*(PowerRequestMessage*)message);
             delete message;
         }
@@ -106,14 +115,13 @@ void on_power_request(const PowerRequestMessage& msg) {
 }
 
 void issue_power_request() {
-    Serial.println(F("Request for power."));
-    PowerRequestMessage res = PowerClientApi::power_request_from_stdin();
+    ui->display(F("Request for power."));
+    PowerRequestMessage res = PowerClientApi::power_request_from_stdin(ui, keypad);
+    
+    // ui->display(F("You created the following power request:"));
+    // res.describe(ui);
 
-    Serial.println(F("You created the following power request:"));
-    res.describe();
-    int temp = GridUtils::get_int(
-        F("Do you want to cancel (option 0) or submit to generating node (option 1) [0/1]: "),
-        GridUtils::validate01);
+    int temp = ui->get_binary(F("Submit? [0/1]:"), keypad);
     
     if (temp == 1) {
         while (true) {
@@ -126,20 +134,19 @@ void issue_power_request() {
                     reply->from == GENERATOR_NUMBER) {
                     success = true;
                 } else {
-                    Serial.println(F("Wrong or no response."));           
+                    ui->display(F("Wrong or no response."));           
                 }
             } else {
-                Serial.println(F("Could not transmit message."));
+                ui->display(F("Could not transmit message."));
             }
             if (!success) {
                 if (reply != NULL) 
                     delete reply;
-                temp = GridUtils::get_int(
-                F("Press 1 to resend 0 to cancel [0/1]: "),
-                GridUtils::validate01);
+                temp = ui->get_binary(F("Submit? [0/1]:"), keypad);
+
                 if (temp == 0)  break;
             } else {
-                reply->describe();
+                reply->describe(ui);
                 PowerResponseMessage* response = (PowerResponseMessage*)reply;
                 if (response->response == PowerResponseMessage::GRANTED) {
                     long delay = millis() + (long)1000*(long)response->when;
@@ -157,27 +164,32 @@ void issue_power_request() {
             }
         }
     } else {
-        Serial.println(F("Request canceled."));
+        ui->display(F("Request canceled."));
     }
-    client_instructions();
+}
+
+void keypad_step() {
+    uint8_t key = keypad->get_key();
+
+    switch (key) {
+         case 1:
+           scheduler.print_queue(ui);
+           break;
+         case 2:
+           issue_power_request();
+
+           break;
+         default:
+           delay(20);
+           break;
+    } 
 }
 
 void client_loop() {
-    uint8_t bytes_read = Serial.readBytes((char*)buf, 1);
-    if (bytes_read > 0) {
-        assert(bytes_read == 1);
-        switch (buf[0]) {
-          case 'R':
-            issue_power_request();
-            break;
-          case 'Q':
-            scheduler.print_queue();
-            break;
-          default:
-            Serial.println(F("Invalid command."));
-        }
-    }
+    //uint8_t bytes_read = Serial.readBytes((char*)buf, 1);
+    keypad_step();
     handle_power_events();
+    ui->step();
 }
 
 void handle_power_events() {
@@ -185,19 +197,19 @@ void handle_power_events() {
         PowerEvent e = scheduler.pop();
         switch (e.type) {
             case PowerEvent::P12V_ON:
-              Serial.println(F("12V ON"));
+              ui->display(F("12V ON"));
               digitalWrite(GRID_OUTPUT_12V, LOW);
               break;
             case PowerEvent::P12V_OFF:
-              Serial.println(F("12V OFF"));
+              ui->display(F("12V OFF"));
               digitalWrite(GRID_OUTPUT_12V, HIGH);
               break;
             case PowerEvent::P5V_ON:
-              Serial.println(F("5V ON"));
+              ui->display(F("5V ON"));
               digitalWrite(GRID_OUTPUT_5V, LOW);
               break;
             case PowerEvent::P5V_OFF:
-              Serial.println(F("5V OFF"));
+              ui->display(F("5V OFF"));
               digitalWrite(GRID_OUTPUT_5V, HIGH);
               break;
             default:
@@ -208,11 +220,16 @@ void handle_power_events() {
 
 
 void client_instructions() {
-    Log.Debug("Press R to issue a power request."CR);
-    Log.Debug("Press Q to print event queue."CR);
+    ui->display(F("Commands:"));
+    ui->display(F("Debug Queue(1)"));
+    ui->display(F("Power Request(2)"));
 }
 
 void loop() {
+    //uint16_t reading = analogRead(A1);
+    //Serial.println(reading);
+    //delay(200);
+    //return;
     if (my_number == GENERATOR_NUMBER) {
         generator_loop();
     } else {

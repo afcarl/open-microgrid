@@ -8,8 +8,6 @@ bool PowerScheduler::schedule(const PowerRequestMessage& msg, uint8_t* when) {
 
 
 void PowerScheduler::push(PowerEvent e) {
-    Serial.print(F("Adding event to queue: "));
-    e.print_me();
     int i = 0;
     // i is index of first violation. Insert at i inserts before first violation.
     while(i < events.size() && events.get(i).e_time <= e.e_time) ++i;
@@ -23,21 +21,16 @@ bool PowerScheduler::available() {
 
 PowerEvent PowerScheduler::pop() {
     PowerEvent e = events.pop_front();
-    Serial.print(F("Removing event from queue: "));
-    e.print_me();
     return e;
 }
 
-void PowerScheduler::print_queue() {
-    Serial.print(F("Current time: "));
-    Serial.println(millis());
-    Serial.print(F("Number of elements in queue: "));
-    Serial.println(events.size());
-    Serial.print("Events available: ");
-    Serial.println(available());
-    Serial.println(F("Queue contents: "));
+void PowerScheduler::print_queue(AbstractUi* ui) {
+    ui->display(F("Current time: %D"), millis());
+    ui->display(F("Number of elements: %d"), events.size());
+    ui->display(F("Events available: %d"), available());
+    ui->display(F("Queue contents: "));
     for (int i=0; i<events.size(); ++i) {
-        events.get(i).print_me();
+        events.get(i).print_me(ui);
     }
-    Serial.println(F("End of queue debug"));
+    ui->display(F("End of queue debug."));
 }

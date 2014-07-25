@@ -37,18 +37,14 @@ PowerRequestMessage* PowerRequestMessage::parse(const uint8_t* buffer,
     return res;
 }
 
-void PowerRequestMessage::describe() const {
-    Serial.print(F("Request for "));
-    Serial.print((flags & (1<<0)) ? F("uncritical") : F("critical"));
-    Serial.print(F(" load at "));
-    Serial.print((flags & (1<<1)) ? F("12V") : F("5V"));
-    Serial.print(F(". Starting between "));
-    Serial.print(start_lb);
-    Serial.print(F(" and "));
-    Serial.print(start_ub);
-    Serial.print(F(" seconds from now. The power will flow for "));
-    Serial.print(duration);
-    Serial.println(F(" seconds."));
+void PowerRequestMessage::describe(AbstractUi* ui) const {
+    ui->display(F("Request for "));
+    ui->display((flags & (1<<0)) ? F("uncritical") : F("critical"));
+    ui->display(F(" load at "));
+    ui->display((flags & (1<<1)) ? F("12V") : F("5V"));
+    ui->display(F("Starting between %d and %d"), start_lb, start_ub);
+    ui->display(F("seconds from now."));
+    ui->display(F(" The power will flow for %d seconds."), duration);
 }
 
 
@@ -69,17 +65,14 @@ PowerResponseMessage* PowerResponseMessage::parse(const uint8_t* buffer,
     return res;
 }
 
-void PowerResponseMessage::describe() const {
-    Serial.print(F("Request was "));
+void PowerResponseMessage::describe(AbstractUi* ui) const {
     switch(response) {
       case GRANTED:
-        Serial.print(" granted. Yeee haw!");
-        Serial.print(" Power will flow ");
-        Serial.print(when);
-        Serial.println(" seconds from now.");
+        ui->display(F("Request granted."));
+        ui->display(F("Wait %d seconds."), when);
         break;
       case DENIED:
-        Serial.println("denied.");
+        Serial.println(F("Request was denied."));
       default:
         break;
     }

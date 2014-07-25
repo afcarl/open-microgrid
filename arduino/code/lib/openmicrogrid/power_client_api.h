@@ -8,13 +8,15 @@
 #endif
 #include "grid_utils.h"
 #include "grid_message.h"
+#include "abstract_ui.h"
+#include "one_wire_keypad.h"
 #include <Logging.h>
 
 class PowerClientApi {
   public:
     PowerClientApi() {};
     
-    static PowerRequestMessage power_request_from_stdin();
+    static PowerRequestMessage power_request_from_stdin(AbstractUi* ui, OneWireKeypad* keypad);
 };
 
 

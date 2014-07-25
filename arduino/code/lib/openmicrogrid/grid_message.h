@@ -9,6 +9,7 @@
 
 #include "smart_assert.h"
 #include "Logging.h"
+#include "abstract_ui.h"
 
 
 class GridMessage {
@@ -23,7 +24,7 @@ class GridMessage {
 
     GridMessage(message_type _type): type(_type) {}
 
-    virtual void describe() const;
+    virtual void describe(AbstractUi*) const;
 
     virtual void to_buffer(uint8_t* buffer, uint8_t* len) const;
 
@@ -56,7 +57,7 @@ struct PowerRequestMessage : GridMessage {
                                              duration(_duration) {
     }
 
-    void describe() const;
+    void describe(AbstractUi*) const;
     void to_buffer(uint8_t* buffer, uint8_t* len) const;
 
     static PowerRequestMessage* parse(const uint8_t* buffer, const uint8_t& len);
@@ -83,7 +84,7 @@ struct PowerResponseMessage : GridMessage {
                                          when(_when) {
     }
 
-    void describe() const;
+    void describe(AbstractUi*) const;
     void to_buffer(uint8_t* buffer, uint8_t* len) const;
 
     static PowerResponseMessage* parse(const uint8_t* buffer, const uint8_t& len);

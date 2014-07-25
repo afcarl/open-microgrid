@@ -5,10 +5,12 @@
 #else
     #include "WProgram.h"
 #endif
+#include "abstract_ui.h"
 
 
 namespace GridUtils {
-    static inline bool is_whitespace(const char& c) {
+
+    /*static inline bool is_whitespace(const char& c) {
         return (c == '\r' || c == ' ' || c == '\n');
     }
 
@@ -89,7 +91,7 @@ namespace GridUtils {
         } else {
             return true;
         }
-    }
+    }*/
 };
 
 #endif

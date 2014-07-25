@@ -8,6 +8,7 @@
 #endif
 #include "grid_message.h"
 #include "linked_list.h"      
+#include "abstract_ui.h"
 
 struct PowerEvent {
     typedef enum {
@@ -28,29 +29,25 @@ struct PowerEvent {
     PowerEvent() : type(DUMMY), e_time(0) {
     } 
 
-    void print_me() {
-        Serial.print("    Event ");
+    void print_me(AbstractUi* ui) {
         switch(type) {
             case P12V_OFF:
-                Serial.print(F("12V OFF"));
+                ui->display(F("12V OFF @ %d"), e_time);
                 break;
             case P12V_ON:
-                Serial.print(F("12V ON"));
+                ui->display(F("12V ON @ %d"), e_time);
                 break;
             case P5V_OFF:
-                Serial.print(F("5V OFF"));
+                ui->display(F("5V OFF @ %d"), e_time);
                 break;
             case P5V_ON:
-                Serial.print(F("5V ON"));
+                ui->display(F("5V ON @ %d"), e_time);
                 break;
             default:
                 Serial.print(F("unknown type:"));
                 Serial.print(type);
                 break;
         }
-        Serial.print(" Happening at ");
-        Serial.println(e_time);
-
     }
 };
 
@@ -64,7 +61,7 @@ class PowerScheduler {
     bool available();
     PowerEvent pop();
 
-    void print_queue();
+    void print_queue(AbstractUi*);
 };
 
 

@@ -35,6 +35,7 @@ class LinkedList {
     int size();
     T get(int index);
     T pop_front();
+    void push_back(T value);
     void add(int index, T value);
 };
 
@@ -89,4 +90,8 @@ void LinkedList<T>::add(int index, T value) {
     ++_size;
 }
 
+template<typename T>
+void LinkedList<T>::push_back(T value) {
+    add(size(), value);
+}
 #endif
