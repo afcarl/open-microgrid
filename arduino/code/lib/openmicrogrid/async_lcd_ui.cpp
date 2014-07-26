@@ -10,6 +10,30 @@ void AsyncLcdUi::setup() {
 }
 
 void AsyncLcdUi::display(const __FlashStringHelper* data, ...) {
+    if ((int)pgm_read_byte_near((char*)data) == (int)'X') {
+            lcd.clear();
+            lcd.setCursor(0,0);
+            lcd.print("5V @ ");
+            // U = IR
+            long reading = 0;
+            for (int i=0; i<20; ++i) {
+                reading += analogRead(A3);
+                delay(5);
+            }            
+            lcd.print(0.51*reading*5/1024/10);
+            lcd.print("A");
+            lcd.setCursor(0,1);
+            lcd.print("12V @ ");
+            reading = 0;
+            for (int i=0; i<20; ++i) {
+                reading += analogRead(A4);
+                delay(5);
+            }            
+            lcd.print(0.51*reading*5/1024/10);            
+            lcd.print("A");
+            return;
+    }
+
     va_list args;
     va_start(args, data);
     lcd.clear();

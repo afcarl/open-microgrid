@@ -21,6 +21,7 @@ class AsyncLcdUi : public AbstractUi {
     void step();
     int get_binary(const __FlashStringHelper* short_text, OneWireKeypad* keypad);
     int get_integer(const __FlashStringHelper* short_text, OneWireKeypad* keypad);
+
 };
 
 #endif

@@ -26,6 +26,7 @@ class AbstractUi {
     virtual int get_integer(const __FlashStringHelper* short_text, OneWireKeypad* keypad) { 
         return -1;
     }
+
 };
 
 #endif

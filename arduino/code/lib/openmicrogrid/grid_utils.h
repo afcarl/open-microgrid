@@ -1,5 +1,8 @@
 #ifndef GRID_UTILS_H
 #define GRID_UTILS_H
+
+#include <EEPROM.h>
+
 #if defined(ARDUINO) && ARDUINO >= 100
     #include "Arduino.h"
 #else
@@ -9,6 +12,23 @@
 
 
 namespace GridUtils {
+    template <class T> int EEPROM_write(int ee, const T& value)
+    {
+        const byte* p = (const byte*)(const void*)&value;
+        unsigned int i;
+        for (i = 0; i < sizeof(value); i++)
+              EEPROM.write(ee++, *p++);
+        return i;
+    }
+
+    template <class T> int EEPROM_read(int ee, T& value)
+    {
+        byte* p = (byte*)(void*)&value;
+        unsigned int i;
+        for (i = 0; i < sizeof(value); i++)
+              *p++ = EEPROM.read(ee++);
+        return i;
+    }
 
     /*static inline bool is_whitespace(const char& c) {
         return (c == '\r' || c == ' ' || c == '\n');
@@ -93,5 +113,6 @@ namespace GridUtils {
         }
     }*/
 };
+
 
 #endif
